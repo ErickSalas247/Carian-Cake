@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Happy Birthday Carian 🎂</title>
+  <style>
+    :root{--bg:#f7f3ef;--cake:#ffd6a5;--frost:#fff6e6}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:linear-gradient(180deg,#f2f8ff 0%,var(--bg) 100%);display:flex;align-items:center;justify-content:center}
+    .stage{width:960px;max-width:95vw;padding:24px;text-align:center}
+    h1{margin:0 0 12px;font-size:28px;color:#333}
+    .cake-wrap{position:relative;margin:14px auto 8px;width:780px;max-width:88vw;height:380px}
+
+    /* cake body */
+    .frosting{position:absolute;left:50%;transform:translateX(-50%);top:130px;width:92%;height:72px;background:linear-gradient(180deg,var(--frost),#fff2d9);border-radius:36px;box-shadow:inset 0 6px 10px rgba(255,255,255,0.5);z-index:3;}
+    .cake{position:absolute;left:50%;transform:translateX(-50%);bottom:0;width:84%;height:240px;background:linear-gradient(180deg,var(--cake),#ffb27a);border-radius:28px 28px 18px 18px;box-shadow:0 12px 30px rgba(0,0,0,0.12);z-index:1;}
+    .plate{position:absolute;left:50%;transform:translateX(-50%);bottom:-10px;width:92%;height:40px;background:linear-gradient(180deg,#fff,#f3f3f3);border-radius:6px;box-shadow:0 8px 18px rgba(0,0,0,0.08)}
+
+    /* inscription */
+    .inscription{position:absolute;left:50%;transform:translateX(-50%);top:100px;width:100%;pointer-events:none}
+    .inscription .text{font-weight:700;font-size:28px;color:#6b2b1b;text-shadow:0 2px 0 rgba(255,255,255,0.6)}
+
+    /* candles container */
+    .candles{position:absolute;left:50%;transform:translateX(-50%);top:22px;width:84%;height:110px}
+    .candle{position:absolute;bottom:0;width:12px;height:48px;border-radius:4px;background:linear-gradient(180deg,#fff,#ffd8b0);display:flex;flex-direction:column;align-items:center}
+    .wick{width:2px;height:8px;background:#3a2b20;margin-top:4px}
+    .flame{width:10px;height:18px;border-radius:50% 50% 40% 40%/70% 70% 30% 30%;transform-origin:center bottom;margin-top:-2px;animation:flicker 180ms infinite}
+    .flame .core{width:6px;height:12px;border-radius:50%;margin:auto;margin-top:3px}
+    @keyframes flicker{0%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-2px) scaleY(.96)}100%{transform:translateY(0) scaleY(1)}}
+
+    /* two-tone flame */
+    .flame.yellow{background:radial-gradient(circle at 40% 30%,#ffd97a 0 30%,transparent 31%), linear-gradient(180deg,#ffb74d,#ff8f00)}
+    .flame.yellow .core{background:linear-gradient(180deg,#fff6b8,#ffd54a)}
+
+    .flame.out{opacity:0;transform:scaleY(.2);transition:opacity .35s,transform .35s}
+
+    /* controls */
+    .controls{margin-top:14px;display:flex;gap:8px;justify-content:center}
+    button{background:#2b6cff;color:white;border:none;padding:10px 14px;border-radius:8px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(43,108,255,0.18)}
+    button.secondary{background:#e9e9ef;color:#222}
+    .status{margin-top:10px;color:#444}
+
+    /* small screens */
+    @media (max-width:520px){.candles{height:88px}.cake-wrap{height:320px}.inscription .text{font-size:20px}}
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <h1>Happy Birthday, Carian 🎉</h1>
+    <div class="cake-wrap" id="cakeWrap">
+      <div class="candles" id="candles"></div>
+      <div class="frosting"></div>
+      <div class="cake">
+        <div class="inscription"><div class="text">Happy Birthday Carian</div></div>
+      </div>
+      <div class="plate"></div>
+    </div>
+
+    <div class="controls">
+      <button id="micBtn">Enable Microphone (Blow)</button>
+      <button id="blowBtn" class="secondary">Blow (Click/Tap)</button>
+      <button id="resetBtn" class="secondary">Reset</button>
+    </div>
+    <div class="status" id="status">Candles lit: <span id="litCount">22</span></div>
+  </div>
+
+  <script>
+    // Config
+    const TOTAL = 22;
+    const candlesEl = document.getElementById('candles');
+    const litCountEl = document.getElementById('litCount');
+    let lit = Array(TOTAL).fill(true);
+
+    // Create candles positioned evenly across the cake top
+    function createCandles(){
+      candlesEl.innerHTML='';
+      for(let i=0;i<TOTAL;i++){
+        const c=document.createElement('div');
+        c.className='candle';
+        // position evenly
+        const percent = (i+0.5)/TOTAL*100;
+        c.style.left = `calc(${percent}% - 6px)`; // center candle
+        // flame
+        const flame=document.createElement('div');
+        flame.className='flame yellow';
+        const core=document.createElement('div');core.className='core';flame.appendChild(core);
+        c.appendChild(flame);
+        // wick (to make flame appear above)
+        const wick=document.createElement('div');wick.className='wick';c.appendChild(wick);
+        // index attribute
+        c.dataset.index = i;
+        candlesEl.appendChild(c);
+      }
+      updateCount();
+    }
+
+    function updateCount(){
+      const count = lit.filter(Boolean).length;
+      litCountEl.textContent = count;
+      if(count===0){
+        celebrate();
+      }
+    }
+
+    // extinguish logic: remove flame from the rightmost lit candle(s)
+    function extinguish(n=1){
+      if(n<=0) return;
+      // extinguish nearest to center strategy: pick lit candles closest to center
+      const centers = Array.from(candlesEl.children).map(el=>({el, idx: +el.dataset.index, x: el.getBoundingClientRect().left + el.offsetWidth/2}));
+      const stageCenter = candlesEl.getBoundingClientRect().left + candlesEl.offsetWidth/2;
+      centers.forEach(o=>o.dist = Math.abs(o.x - stageCenter));
+      centers.sort((a,b)=>a.dist-b.dist);
+      let extinguished=0;
+      for(const o of centers){
+        const i=o.idx;
+        if(lit[i]){
+          const flame = o.el.querySelector('.flame');
+          flame.classList.add('out');
+          // keep wick visible
+          lit[i]=false;
+          extinguished++;
+          if(extinguished>=n) break;
+        }
+      }
+      updateCount();
+    }
+
+    function reset(){
+      lit = Array(TOTAL).fill(true);
+      const flames = candlesEl.querySelectorAll('.flame');
+      flames.forEach(f=>f.classList.remove('out'));
+      updateCount();
+    }
+
+    // celebrate (simple confetti via DOM)
+    function celebrate(){
+      for(let i=0;i<60;i++){
+        const p=document.createElement('div');
+        p.style.position='fixed';
+        p.style.left = Math.random()*100+'%';
+        p.style.top = Math.random()*-20+'%';
+        p.style.width = p.style.height = (6+Math.random()*10)+'px';
+        p.style.background = ['#ff7a7a','#ffd66b','#7afcff','#a7ff7a','#d89bff'][Math.floor(Math.random()*5)];
+        p.style.borderRadius='50%';
+        p.style.opacity='0.95';
+        p.style.transform = `translateY(0) rotate(${Math.random()*360}deg)`;
+        p.style.zIndex=9999;
+        document.body.appendChild(p);
+        // animate
+        const dur = 2000 + Math.random()*1600;
+        p.animate([{transform:'translateY(0) rotate(0deg)', opacity:1},{transform:`translateY(${window.innerHeight+200}px) rotate(${Math.random()*720}deg)`, opacity:0.2}],{duration:dur,iterations:1,easing:'cubic-bezier(.2,.7,.2,1)'}).onfinish = ()=>p.remove();
+      }
+      // add a message
+      const msg = document.createElement('div');
+      msg.textContent = 'Make a wish — All candles are out! 🎉';
+      msg.style.position='fixed';msg.style.left='50%';msg.style.top='10%';msg.style.transform='translateX(-50%)';
+      msg.style.background='rgba(255,255,255,0.95)';msg.style.padding='12px 20px';msg.style.borderRadius='14px';msg.style.boxShadow='0 8px 20px rgba(0,0,0,0.12)';msg.style.fontWeight=700;msg.style.zIndex=10000;
+      document.body.appendChild(msg);
+      setTimeout(()=>msg.remove(),4500);
+    }
+
+    createCandles();
+
+    // Blow detection: both click/tap and microphone
+    document.getElementById('blowBtn').addEventListener('click', ()=>{
+      // extinguish a variable number depending on random strength
+      const n = 1 + Math.floor(Math.random()*3);
+      extinguish(n);
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', reset);
+
+    // Microphone
+    let audioCtx, analyser, source, dataArray, micStream;
+    const micBtn = document.getElementById('micBtn');
+    let listening=false;
+
+    micBtn.addEventListener('click', async ()=>{
+      if(listening){
+        stopMic();
+        micBtn.textContent='Enable Microphone (Blow)';
+        return;
+      }
+      try{
+        micStream = await navigator.mediaDevices.getUserMedia({audio:true});
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        source = audioCtx.createMediaStreamSource(micStream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        source.connect(analyser);
+        dataArray = new Uint8Array(analyser.fftSize);
+        listening=true;
+        micBtn.textContent='Disable Microphone';
+        monitorMic();
+      }catch(err){
+        alert('Microphone access denied or not available. You can still click "Blow".');
+      }
+    });
+    function stopMic(){
+      if(micStream){
+        micStream.getTracks().forEach(t=>t.stop());
+        micStream=null;
+      }
+      if(audioCtx){audioCtx.close();audioCtx=null}
+      listening=false;
+    }
+
+    // monitor microphone volume and fire extinguish when a blow is detected
+    let lastBlowTime = 0;
+    function monitorMic(){
+      if(!analyser) return;
+      analyser.getByteTimeDomainData(dataArray);
+      // compute RMS-ish
+      let sum=0;
+      for(let i=0;i<dataArray.length;i++){ const v=(dataArray[i]-128)/128; sum += v*v; }
+      const rms = Math.sqrt(sum/dataArray.length);
+      // threshold tuned for typical phone/laptop blows — you may adjust
+      const threshold = 0.18;
+      const now = Date.now();
+      // require short silence between blows
+      if(rms > threshold && now - lastBlowTime > 650){
+        // strength proportional to rms
+        const strength = Math.min(6, Math.round((rms - threshold)*30));
+        const count = Math.max(1, strength);
+        extinguish(count);
+        lastBlowTime = now;
+      }
+      requestAnimationFrame(monitorMic);
+    }
+
+    // Accessibility: allow keyboard 'b' to blow
+    window.addEventListener('keydown', e=>{ if(e.key.toLowerCase()==='b') extinguish(1); });
+
+    // small hint for mobile: auto-focus permission may be needed
+    // done
+  </script>
+</body>
+</html>
